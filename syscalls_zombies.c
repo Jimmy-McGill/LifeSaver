@@ -5,7 +5,7 @@ int set_max_zombies(int max_z, pid_t pid) {
 		errno = ESRCH;
 		return -1;
 	}
-	if (max_z < 0 || pid <= 1) {
+	if (max_z < 0) {
 		errno = EINVAL;
 		return -1;
 	}
