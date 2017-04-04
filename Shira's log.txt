@@ -1,3 +1,12 @@
 This is where Shira will post her updates and other notes.
+4.4.17
 
-hiiiiiiii how are u??
+what did we do?
+1. worked on sched.h:
+	* define NO_Z_LIMIT -1
+	* added to task_struct max_zombies 
+	* added to INIT_TASK the initilazation of max_zombies to NO_Z_LIMIT
+
+2. syscall_zombies.c
+	* includes sys_set and sys_get
+	
