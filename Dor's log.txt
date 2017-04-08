@@ -1,3 +1,14 @@
 This is where Dor will post his updates and other notes.
 
 6/4/17 14:52 ~ Added get and set max zmobies, kind of tested.
+Modified files so far:
+	KERNEL:
+	- sched.h
+	- entry.S
+	- Makefile
+	- syscalls_zombies.c (new file)
+	- exit.c (חרא של שינוי סביבות שורה 632)
+	- fork.c
+	USER:
+	- zombies.h (new file)
+	- zombies_test.c (new file)

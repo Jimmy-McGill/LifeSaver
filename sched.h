@@ -461,6 +461,17 @@ struct task_struct {
  * if max_zombies = NO_Z_LIMIT => max_zombies wasn't defined.
  * */
 	int max_zombies;
+
+/*
+ * List of zombie sons, sorted by time of death (first to die is the first on the list).
+ * This is not initialized because a new process is not a zombie.
+ * 'first' is a pointer to the first zombie son that a process has.
+ * */
+	list_t zombies_list;
+/*
+ * Number of zombies currently in the process' zombies list.
+ * */
+	int num_of_zombie_sons;
 };
 
 /*
@@ -566,7 +577,9 @@ extern struct exec_domain	default_exec_domain;
     blocked:		{{0}},						\
     alloc_lock:		SPIN_LOCK_UNLOCKED,				\
     journal_info:	NULL,						\
-	max_zombies: NO_Z_LIMIT 					\
+	max_zombies: NO_Z_LIMIT, 					\
+	zombies_list: LIST_HEAD_INIT(tsk.zombies_list),		\
+	num_of_zombie_sons:	0,						\
 }
 
 
