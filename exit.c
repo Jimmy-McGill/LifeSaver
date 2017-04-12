@@ -535,8 +535,13 @@ fake_volatile:
 
 	// OUR CODE
 	task_t *father_task = tsk->p_opptr;
-	list_add_tail(&(current->zombies_list), &(father_task->zombies_list));
-	father_task->num_of_zombie_sons = father_task->num_of_zombie_sons + 1; // better safe than sorry MODAFUCKAAAA
+	if (father_task->max_zombies != NO_Z_LIMIT) {
+		printk("do_exit: i'm adding zombie\n");
+		printk("me: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n", current->pid, current->max_zombies, current->num_of_zombie_sons);
+		printk("father: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n~\n", father_task->pid, father_task->max_zombies, father_task->num_of_zombie_sons);
+		list_add_tail(&(current->zombies_list), &(father_task->zombies_list));
+		father_task->num_of_zombie_sons = father_task->num_of_zombie_sons + 1; // better safe than sorry MODAFUCKAAAA
+	}
 
 	schedule();
 	BUG();
@@ -639,9 +644,14 @@ repeat:
 					do_notify_parent(p, SIGCHLD);
 					write_unlock_irq(&tasklist_lock);
 				} else {
-					list_del(&(p->zombies_list));
 					task_t *father_task = p->p_opptr;
-					father_task->num_of_zombie_sons = father_task->num_of_zombie_sons - 1; // better safe than sorry MODAFUCKAAAA
+					if (father_task->max_zombies != NO_Z_LIMIT) {
+						printk("wait: i'm removing zombie\n");
+						printk("me: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n", p->pid, p->max_zombies, p->num_of_zombie_sons);
+						printk("father: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n~\n", father_task->pid, father_task->max_zombies, father_task->num_of_zombie_sons);
+						list_del(&(p->zombies_list));
+						father_task->num_of_zombie_sons = father_task->num_of_zombie_sons - 1; // better safe than sorry MODAFUCKAAAA
+					}
 					release_task(p);
 				}
 				goto end_wait4;

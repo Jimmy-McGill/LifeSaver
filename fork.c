@@ -564,8 +564,10 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 	// OUR CODE
 	if (current->max_zombies != NO_Z_LIMIT) {
-		if (current->max_zombies > current->num_of_zombie_sons
+		if (current->max_zombies < current->num_of_zombie_sons
 				|| current->max_zombies == current->num_of_zombie_sons) {
+			printk("no fork!\n");
+			printk("pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n~\n", current->pid, current->max_zombies, current->num_of_zombie_sons);
 			return -ENOMEM;
 		}
 	}
