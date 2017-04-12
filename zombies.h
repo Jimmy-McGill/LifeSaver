@@ -32,3 +32,33 @@ int get_max_zombies() {
 	}
 	return __res;
 }
+
+int get_zombies_count(pid_t pid) {
+	int __res;
+	__asm__(
+		"int $0x80;"
+		: "=a" (__res)
+		: "0" (245), "b" (pid)
+		:"memory"
+		);
+	if ((__res) < 0) {
+		errno = (-__res);
+		return -1;
+	}
+	return __res;
+}
+
+pid_t get_zombie_pid(int n) {
+	int __res;
+	__asm__(
+		"int $0x80;"
+		: "=a" (__res)
+		: "0" (246), "b" (n)
+		: "memory"
+	);
+	if ((__res) < 0) {
+		errno = (-__res);
+		return -1;
+	}
+	return __res;
+}

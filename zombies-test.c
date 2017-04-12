@@ -44,13 +44,28 @@ int main() {
 				int grandchild_pid2 = fork();
 
 				if (grandchild_pid2 == 0) {
-					printf("First fork OK now I die\n");
+					printf("Second fork OK now I die\n");
 					return 0;
 				}
 				do_long_task(1500);
 				printf("Num of zombie sons is: %d\n", get_zombies_count(pid2));
 
-		wait();
+
+				int grandchild_pid3 = fork();
+
+				if (grandchild_pid3 == 0) {
+					printf("Third fork OK now I die\n");
+					return 0;
+				}
+				do_long_task(1500);
+				printf("Num of zombie sons is: %d\n", get_zombies_count(pid2));
+
+		if (grandchild_pid != 0) {
+			printf("first Z is: %d\n", get_zombie_pid(0));
+			printf("second Z is: %d\n", get_zombie_pid(1));
+			printf("third Z is: %d\n", get_zombie_pid(2));
+			printf("fourth Z is: %d (should be -1)\n", get_zombie_pid(3));
+		}
 	}
 
 	return 0;

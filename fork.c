@@ -633,6 +633,10 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 	INIT_LIST_HEAD(&p->run_list);
 
+	// OUR CODE
+	INIT_LIST_HEAD(&p->zombies_list);
+	p->max_zombies = NO_Z_LIMIT;
+
 	p->p_cptr = NULL;
 	init_waitqueue_head(&p->wait_chldexit);
 	p->vfork_done = NULL;

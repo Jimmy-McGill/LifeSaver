@@ -32,14 +32,28 @@ int sys_get_zombies_count(pid_t pid) {
 	if (target->max_zombies == NO_Z_LIMIT) {
 		return 0;
 	}
-//	list_t iterator = target->zombies_list;
-//	int counter = 0;
-//	printk("line 37\n");
-//	list_for_each(&iterator, &(target->zombies_list)) {
-//		printk("line 39\n");
-//		counter++;
-//	}
+
 	return target->num_of_zombie_sons;
 }
 
-
+pid_t sys_get_zombie_pid(int n) {
+	if (n >= current->num_of_zombie_sons) {
+		printk("in the kernel2\n");
+		return -ESRCH;
+	}
+	if (current->max_zombies == NO_Z_LIMIT) {
+		printk("in the kernel3\n");
+		return -EINVAL;
+	}
+	list_t *itr = NULL;
+	list_for_each(itr, &(current->zombies_list)) {
+		printk("in loop\n");
+		if (!n) {
+			printk("in loop in if\n");
+			task_t *task_ptr = list_entry(itr, task_t, zombies_list);
+			printk("my pid from kernel is: %d\n", task_ptr->pid);
+			return task_ptr->pid;
+		}
+		n--;
+	}
+}
