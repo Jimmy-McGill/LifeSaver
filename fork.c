@@ -636,6 +636,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	// OUR CODE
 	INIT_LIST_HEAD(&p->zombies_list);
 	p->max_zombies = NO_Z_LIMIT;
+	p->num_of_zombie_sons = 0;
 
 	p->p_cptr = NULL;
 	init_waitqueue_head(&p->wait_chldexit);

@@ -62,3 +62,18 @@ pid_t get_zombie_pid(int n) {
 	}
 	return __res;
 }
+
+int give_up_zombie(int n, pid_t adopter_pid) {
+	int __res;
+	__asm__(
+		"int $0x80;"
+		: "=a" (__res)
+		: "0" (247), "b" (n), "c"(adopter_pid)
+		:"memory"
+		);
+	if ((__res) < 0) {
+		errno = (-__res);
+		return -1;
+	}
+	return __res;
+}
