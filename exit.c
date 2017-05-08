@@ -535,10 +535,7 @@ fake_volatile:
 
 	// OUR CODE
 	task_t *father_task = tsk->p_opptr;
-	if (father_task->max_zombies != NO_Z_LIMIT) {
-		printk("do_exit: i'm adding zombie\n");
-		printk("me: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n", current->pid, current->max_zombies, current->num_of_zombie_sons);
-		printk("father: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n~\n", father_task->pid, father_task->max_zombies, father_task->num_of_zombie_sons);
+	if (father_task && (father_task->max_zombies != NO_Z_LIMIT)) {
 		list_add_tail(&(current->zombies_list), &(father_task->zombies_list));
 		father_task->num_of_zombie_sons = father_task->num_of_zombie_sons + 1; // better safe than sorry MODAFUCKAAAA
 	}
@@ -645,12 +642,19 @@ repeat:
 					write_unlock_irq(&tasklist_lock);
 				} else {
 					task_t *father_task = p->p_opptr;
+					//OUR CODE
 					if (father_task->max_zombies != NO_Z_LIMIT) {
-						printk("wait: i'm removing zombie\n");
-						printk("me: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n", p->pid, p->max_zombies, p->num_of_zombie_sons);
-						printk("father: pid: %d, max_zombies: %d, num_of_zombie_sons: %d\n~\n", father_task->pid, father_task->max_zombies, father_task->num_of_zombie_sons);
-						list_del(&(p->zombies_list));
+						//if the zombis list contains the current task, remove it
+						list_t *itr;
+						list_for_each(itr, &(father_task->zombies_list)){
+							if (itr == (&(p->zombies_list))){
+								list_del(&(p->zombies_list));
+							}	
+						}
 						father_task->num_of_zombie_sons = father_task->num_of_zombie_sons - 1; // better safe than sorry MODAFUCKAAAA
+						if (father_task->num_of_zombie_sons < 0) {
+							father_task->num_of_zombie_sons = 0;
+						}
 					}
 					release_task(p);
 				}
