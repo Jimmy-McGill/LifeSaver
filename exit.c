@@ -21,10 +21,6 @@
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
-#include <linux/list.h>
-
-#define NO_Z_LIMIT -1 /* For the max_zombies feature */
-
 extern void sem_exit (void);
 extern struct task_struct *child_reaper;
 
@@ -532,14 +528,6 @@ fake_volatile:
 
 	tsk->exit_code = code;
 	exit_notify();
-
-	// OUR CODE
-	task_t *father_task = tsk->p_opptr;
-	if (father_task && (father_task->max_zombies != NO_Z_LIMIT)) {
-		list_add_tail(&(current->zombies_list), &(father_task->zombies_list));
-		father_task->num_of_zombie_sons = father_task->num_of_zombie_sons + 1; // better safe than sorry MODAFUCKAAAA
-	}
-
 	schedule();
 	BUG();
 /*
@@ -640,24 +628,8 @@ repeat:
 					SET_LINKS(p);
 					do_notify_parent(p, SIGCHLD);
 					write_unlock_irq(&tasklist_lock);
-				} else {
-					task_t *father_task = p->p_opptr;
-					//OUR CODE
-					if (father_task->max_zombies != NO_Z_LIMIT) {
-						//if the zombis list contains the current task, remove it
-						list_t *itr;
-						list_for_each(itr, &(father_task->zombies_list)){
-							if (itr == (&(p->zombies_list))){
-								list_del(&(p->zombies_list));
-							}	
-						}
-						father_task->num_of_zombie_sons = father_task->num_of_zombie_sons - 1; // better safe than sorry MODAFUCKAAAA
-						if (father_task->num_of_zombie_sons < 0) {
-							father_task->num_of_zombie_sons = 0;
-						}
-					}
+				} else
 					release_task(p);
-				}
 				goto end_wait4;
 			default:
 				continue;

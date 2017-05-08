@@ -33,14 +33,15 @@
 int nr_threads;
 
 int max_threads;
-unsigned long total_forks; /* Handle normal Linux uptimes. */
+unsigned long total_forks;	/* Handle normal Linux uptimes. */
 int last_pid;
 
 struct task_struct *pidhash[PIDHASH_SZ];
 
-rwlock_t tasklist_lock __cacheline_aligned = RW_LOCK_UNLOCKED; /* outer */
+rwlock_t tasklist_lock __cacheline_aligned = RW_LOCK_UNLOCKED;  /* outer */
 
-void add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait) {
+void add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
+{
 	unsigned long flags;
 
 	wait->flags &= ~WQ_FLAG_EXCLUSIVE;
@@ -49,7 +50,8 @@ void add_wait_queue(wait_queue_head_t *q, wait_queue_t * wait) {
 	wq_write_unlock_irqrestore(&q->lock, flags);
 }
 
-void add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait) {
+void add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait)
+{
 	unsigned long flags;
 
 	wait->flags |= WQ_FLAG_EXCLUSIVE;
@@ -58,7 +60,8 @@ void add_wait_queue_exclusive(wait_queue_head_t *q, wait_queue_t * wait) {
 	wq_write_unlock_irqrestore(&q->lock, flags);
 }
 
-void remove_wait_queue(wait_queue_head_t *q, wait_queue_t * wait) {
+void remove_wait_queue(wait_queue_head_t *q, wait_queue_t * wait)
+{
 	unsigned long flags;
 
 	wq_write_lock_irqsave(&q->lock, flags);
@@ -66,22 +69,24 @@ void remove_wait_queue(wait_queue_head_t *q, wait_queue_t * wait) {
 	wq_write_unlock_irqrestore(&q->lock, flags);
 }
 
-void __init fork_init(unsigned long mempages) {
+void __init fork_init(unsigned long mempages)
+{
 	/*
 	 * The default maximum number of threads is set to a safe
 	 * value: the thread structures can take up at most half
 	 * of memory.
 	 */
-	max_threads = mempages / (THREAD_SIZE / PAGE_SIZE) / 8;
+	max_threads = mempages / (THREAD_SIZE/PAGE_SIZE) / 8;
 
-	init_task.rlim[RLIMIT_NPROC].rlim_cur = max_threads / 2;
-	init_task.rlim[RLIMIT_NPROC].rlim_max = max_threads / 2;
+	init_task.rlim[RLIMIT_NPROC].rlim_cur = max_threads/2;
+	init_task.rlim[RLIMIT_NPROC].rlim_max = max_threads/2;
 }
 
 /* Protects next_safe and last_pid. */
 spinlock_t lastpid_lock = SPIN_LOCK_UNLOCKED;
 
-static int get_pid(unsigned long flags) {
+static int get_pid(unsigned long flags)
+{
 	static int next_safe = PID_MAX;
 	struct task_struct *p;
 	int pid, beginpid;
@@ -91,34 +96,36 @@ static int get_pid(unsigned long flags) {
 
 	spin_lock(&lastpid_lock);
 	beginpid = last_pid;
-	if ((++last_pid) & 0xffff8000) {
-		last_pid = 300; /* Skip daemons etc. */
+	if((++last_pid) & 0xffff8000) {
+		last_pid = 300;		/* Skip daemons etc. */
 		goto inside;
 	}
-	if (last_pid >= next_safe) {
-		inside: next_safe = PID_MAX;
+	if(last_pid >= next_safe) {
+inside:
+		next_safe = PID_MAX;
 		read_lock(&tasklist_lock);
-		repeat:
-		for_each_task(p)
-		{
-			if (p->pid == last_pid || p->pgrp == last_pid || p->tgid == last_pid
-					|| p->session == last_pid) {
-				if (++last_pid >= next_safe) {
-					if (last_pid & 0xffff8000)
+	repeat:
+		for_each_task(p) {
+			if(p->pid == last_pid	||
+			   p->pgrp == last_pid	||
+			   p->tgid == last_pid	||
+			   p->session == last_pid) {
+				if(++last_pid >= next_safe) {
+					if(last_pid & 0xffff8000)
 						last_pid = 300;
 					next_safe = PID_MAX;
 				}
-				if (unlikely(last_pid == beginpid))
+				if(unlikely(last_pid == beginpid))
 					goto nomorepids;
 				goto repeat;
 			}
-			if (p->pid > last_pid && next_safe > p->pid)
+			if(p->pid > last_pid && next_safe > p->pid)
 				next_safe = p->pid;
-			if (p->pgrp > last_pid && next_safe > p->pgrp)
+			if(p->pgrp > last_pid && next_safe > p->pgrp)
 				next_safe = p->pgrp;
-			if (p->tgid > last_pid && next_safe > p->tgid)
+			if(p->tgid > last_pid && next_safe > p->tgid)
 				next_safe = p->tgid;
-			if (p->session > last_pid && next_safe > p->session)
+			if(p->session > last_pid && next_safe > p->session)
 				next_safe = p->session;
 		}
 		read_unlock(&tasklist_lock);
@@ -128,13 +135,14 @@ static int get_pid(unsigned long flags) {
 
 	return pid;
 
-	nomorepids:
+nomorepids:
 	read_unlock(&tasklist_lock);
 	spin_unlock(&lastpid_lock);
 	return 0;
 }
 
-static inline int dup_mmap(struct mm_struct * mm) {
+static inline int dup_mmap(struct mm_struct * mm)
+{
 	struct vm_area_struct * mpnt, *tmp, **pprev;
 	int retval;
 	unsigned long charge = 0;
@@ -159,17 +167,18 @@ static inline int dup_mmap(struct mm_struct * mm) {
 	mmlist_nr++;
 	spin_unlock(&mmlist_lock);
 
-	for (mpnt = current->mm->mmap; mpnt; mpnt = mpnt->vm_next) {
+	for (mpnt = current->mm->mmap ; mpnt ; mpnt = mpnt->vm_next) {
 		struct file *file;
 
 		retval = -ENOMEM;
-		if (mpnt->vm_flags & VM_DONTCOPY)
+		if(mpnt->vm_flags & VM_DONTCOPY)
 			continue;
-
+	
 		/* FIXME: shared writable map accounting should be one off */
-		if (mpnt->vm_flags & VM_ACCOUNT) {
+		if(mpnt->vm_flags & VM_ACCOUNT)
+		{
 			unsigned int len = (mpnt->vm_end - mpnt->vm_start) >> PAGE_SHIFT;
-			if (!vm_enough_memory(len))
+			if(!vm_enough_memory(len))
 				goto fail_nomem;
 			charge += len;
 		}
@@ -186,11 +195,12 @@ static inline int dup_mmap(struct mm_struct * mm) {
 			get_file(file);
 			if (tmp->vm_flags & VM_DENYWRITE)
 				atomic_dec(&inode->i_writecount);
-
+      
 			/* insert tmp into the share list, just after mpnt */
 			spin_lock(&inode->i_mapping->i_shared_lock);
-			if ((tmp->vm_next_share = mpnt->vm_next_share) != NULL)
-				mpnt->vm_next_share->vm_pprev_share = &tmp->vm_next_share;
+			if((tmp->vm_next_share = mpnt->vm_next_share) != NULL)
+				mpnt->vm_next_share->vm_pprev_share =
+					&tmp->vm_next_share;
 			mpnt->vm_next_share = tmp;
 			tmp->vm_pprev_share = &mpnt->vm_next_share;
 			spin_unlock(&inode->i_mapping->i_shared_lock);
@@ -215,9 +225,11 @@ static inline int dup_mmap(struct mm_struct * mm) {
 	}
 	retval = 0;
 	build_mmap_rb(mm);
-	out: flush_tlb_mm(current->mm);
+out:
+	flush_tlb_mm(current->mm);
 	return retval;
-	fail_nomem: vm_unacct_memory(charge);
+fail_nomem:
+	vm_unacct_memory(charge);
 	goto out;
 }
 
@@ -227,7 +239,8 @@ int mmlist_nr;
 #define allocate_mm()	(kmem_cache_alloc(mm_cachep, SLAB_KERNEL))
 #define free_mm(mm)	(kmem_cache_free(mm_cachep, (mm)))
 
-static struct mm_struct * mm_init(struct mm_struct * mm) {
+static struct mm_struct * mm_init(struct mm_struct * mm)
+{
 	atomic_set(&mm->mm_users, 1);
 	atomic_set(&mm->mm_count, 1);
 	init_rwsem(&mm->mmap_sem);
@@ -239,11 +252,13 @@ static struct mm_struct * mm_init(struct mm_struct * mm) {
 	free_mm(mm);
 	return NULL;
 }
+	
 
 /*
  * Allocate and initialize an mm_struct.
  */
-struct mm_struct * mm_alloc(void) {
+struct mm_struct * mm_alloc(void)
+{
 	struct mm_struct * mm;
 
 	mm = allocate_mm();
@@ -259,7 +274,8 @@ struct mm_struct * mm_alloc(void) {
  * is dropped: either by a lazy thread or by
  * mmput. Free the page directory and the mm.
  */
-inline void __mmdrop(struct mm_struct *mm) {
+inline void __mmdrop(struct mm_struct *mm)
+{
 	BUG_ON(mm == &init_mm);
 	pgd_free(mm->pgd);
 	destroy_context(mm);
@@ -269,7 +285,8 @@ inline void __mmdrop(struct mm_struct *mm) {
 /*
  * Decrement the use count and release all resources for an mm.
  */
-void mmput(struct mm_struct *mm) {
+void mmput(struct mm_struct *mm)
+{
 	if (atomic_dec_and_lock(&mm->mm_users, &mmlist_lock)) {
 		list_del(&mm->mmlist);
 		mmlist_nr--;
@@ -292,7 +309,8 @@ void mmput(struct mm_struct *mm) {
  * restoring the old one. . .
  * Eric Biederman 10 January 1998
  */
-void mm_release(void) {
+void mm_release(void)
+{
 	struct task_struct *tsk = current;
 	struct completion *vfork_done = tsk->vfork_done;
 
@@ -303,7 +321,8 @@ void mm_release(void) {
 	}
 }
 
-static int copy_mm(unsigned long clone_flags, struct task_struct * tsk) {
+static int copy_mm(unsigned long clone_flags, struct task_struct * tsk)
+{
 	struct mm_struct * mm, *oldmm;
 	int retval;
 
@@ -339,7 +358,7 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk) {
 	if (!mm_init(mm))
 		goto fail_nomem;
 
-	if (init_new_context(tsk, mm))
+	if (init_new_context(tsk,mm))
 		goto free_pt;
 
 	down_write(&oldmm->mmap_sem);
@@ -354,15 +373,19 @@ static int copy_mm(unsigned long clone_flags, struct task_struct * tsk) {
 	 */
 	copy_segments(tsk, mm);
 
-	good_mm: tsk->mm = mm;
+good_mm:
+	tsk->mm = mm;
 	tsk->active_mm = mm;
 	return 0;
 
-	free_pt: mmput(mm);
-	fail_nomem: return retval;
+free_pt:
+	mmput(mm);
+fail_nomem:
+	return retval;
 }
 
-static inline struct fs_struct *__copy_fs_struct(struct fs_struct *old) {
+static inline struct fs_struct *__copy_fs_struct(struct fs_struct *old)
+{
 	struct fs_struct *fs = kmem_cache_alloc(fs_cachep, GFP_KERNEL);
 	/* We don't need to lock fs - think why ;-) */
 	if (fs) {
@@ -380,17 +403,19 @@ static inline struct fs_struct *__copy_fs_struct(struct fs_struct *old) {
 		} else {
 			fs->altrootmnt = NULL;
 			fs->altroot = NULL;
-		}
+		}	
 		read_unlock(&old->lock);
 	}
 	return fs;
 }
 
-struct fs_struct *copy_fs_struct(struct fs_struct *old) {
+struct fs_struct *copy_fs_struct(struct fs_struct *old)
+{
 	return __copy_fs_struct(old);
 }
 
-static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk) {
+static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk)
+{
 	if (clone_flags & CLONE_FS) {
 		atomic_inc(&current->fs->count);
 		return 0;
@@ -401,19 +426,21 @@ static inline int copy_fs(unsigned long clone_flags, struct task_struct * tsk) {
 	return 0;
 }
 
-static int count_open_files(struct files_struct *files, int size) {
+static int count_open_files(struct files_struct *files, int size)
+{
 	int i;
-
+	
 	/* Find the last open fd */
-	for (i = size / (8 * sizeof(long)); i > 0;) {
+	for (i = size/(8*sizeof(long)); i > 0; ) {
 		if (files->open_fds->fds_bits[--i])
 			break;
 	}
-	i = (i + 1) * 8 * sizeof(long);
+	i = (i+1) * 8 * sizeof(long);
 	return i;
 }
 
-static int copy_files(unsigned long clone_flags, struct task_struct * tsk) {
+static int copy_files(unsigned long clone_flags, struct task_struct * tsk)
+{
 	struct files_struct *oldf, *newf;
 	struct file **old_fds, **new_fds;
 	int open_files, nfds, size, i, error = 0;
@@ -433,26 +460,26 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk) {
 	tsk->files = NULL;
 	error = -ENOMEM;
 	newf = kmem_cache_alloc(files_cachep, SLAB_KERNEL);
-	if (!newf)
+	if (!newf) 
 		goto out;
 
 	atomic_set(&newf->count, 1);
 
-	newf->file_lock = RW_LOCK_UNLOCKED;
-	newf->next_fd = 0;
-	newf->max_fds = NR_OPEN_DEFAULT;
-	newf->max_fdset = __FD_SETSIZE;
+	newf->file_lock	    = RW_LOCK_UNLOCKED;
+	newf->next_fd	    = 0;
+	newf->max_fds	    = NR_OPEN_DEFAULT;
+	newf->max_fdset	    = __FD_SETSIZE;
 	newf->close_on_exec = &newf->close_on_exec_init;
-	newf->open_fds = &newf->open_fds_init;
-	newf->fd = &newf->fd_array[0];
+	newf->open_fds	    = &newf->open_fds_init;
+	newf->fd	    = &newf->fd_array[0];
 
 	/* We don't yet have the oldf readlock, but even if the old
-	 fdset gets grown now, we'll only copy up to "size" fds */
+           fdset gets grown now, we'll only copy up to "size" fds */
 	size = oldf->max_fdset;
 	if (size > __FD_SETSIZE) {
 		newf->max_fdset = 0;
 		write_lock(&newf->file_lock);
-		error = expand_fdset(newf, size - 1);
+		error = expand_fdset(newf, size-1);
 		write_unlock(&newf->file_lock);
 		if (error)
 			goto out_release;
@@ -471,9 +498,9 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk) {
 		read_unlock(&oldf->file_lock);
 		newf->max_fds = 0;
 		write_lock(&newf->file_lock);
-		error = expand_fd_array(newf, open_files - 1);
+		error = expand_fd_array(newf, open_files-1);
 		write_unlock(&newf->file_lock);
-		if (error)
+		if (error) 
 			goto out_release;
 		nfds = newf->max_fds;
 		read_lock(&oldf->file_lock);
@@ -482,9 +509,8 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk) {
 	old_fds = oldf->fd;
 	new_fds = newf->fd;
 
-	memcpy(newf->open_fds->fds_bits, oldf->open_fds->fds_bits, open_files / 8);
-	memcpy(newf->close_on_exec->fds_bits, oldf->close_on_exec->fds_bits,
-			open_files / 8);
+	memcpy(newf->open_fds->fds_bits, oldf->open_fds->fds_bits, open_files/8);
+	memcpy(newf->close_on_exec->fds_bits, oldf->close_on_exec->fds_bits, open_files/8);
 
 	for (i = open_files; i != 0; i--) {
 		struct file *f = *old_fds++;
@@ -497,29 +523,31 @@ static int copy_files(unsigned long clone_flags, struct task_struct * tsk) {
 	/* compute the remainder to be cleared */
 	size = (newf->max_fds - open_files) * sizeof(struct file *);
 
-	/* This is long word aligned thus could use a optimized version */
-	memset(new_fds, 0, size);
+	/* This is long word aligned thus could use a optimized version */ 
+	memset(new_fds, 0, size); 
 
 	if (newf->max_fdset > open_files) {
-		int left = (newf->max_fdset - open_files) / 8;
+		int left = (newf->max_fdset-open_files)/8;
 		int start = open_files / (8 * sizeof(unsigned long));
-
+		
 		memset(&newf->open_fds->fds_bits[start], 0, left);
 		memset(&newf->close_on_exec->fds_bits[start], 0, left);
 	}
 
 	tsk->files = newf;
 	error = 0;
-	out: return error;
+out:
+	return error;
 
-	out_release: free_fdset(newf->close_on_exec, newf->max_fdset);
-	free_fdset(newf->open_fds, newf->max_fdset);
+out_release:
+	free_fdset (newf->close_on_exec, newf->max_fdset);
+	free_fdset (newf->open_fds, newf->max_fdset);
 	kmem_cache_free(files_cachep, newf);
 	goto out;
 }
 
-static inline int copy_sighand(unsigned long clone_flags,
-		struct task_struct * tsk) {
+static inline int copy_sighand(unsigned long clone_flags, struct task_struct * tsk)
+{
 	struct signal_struct *sig;
 
 	if (clone_flags & CLONE_SIGHAND) {
@@ -536,7 +564,8 @@ static inline int copy_sighand(unsigned long clone_flags,
 	return 0;
 }
 
-static inline void copy_flags(unsigned long clone_flags, struct task_struct *p) {
+static inline void copy_flags(unsigned long clone_flags, struct task_struct *p)
+{
 	unsigned long new_flags = p->flags;
 
 	new_flags &= ~(PF_SUPERPRIV | PF_USEDFPU);
@@ -556,20 +585,14 @@ static inline void copy_flags(unsigned long clone_flags, struct task_struct *p) 
  * arch/ia64/kernel/process.c.
  */
 int do_fork(unsigned long clone_flags, unsigned long stack_start,
-		struct pt_regs *regs, unsigned long stack_size) {
+	    struct pt_regs *regs, unsigned long stack_size)
+{
 	int retval;
 	unsigned long flags;
 	struct task_struct *p;
 	struct completion vfork;
 
-	// OUR CODE
-	if (current->max_zombies != NO_Z_LIMIT) {
-		if (current->max_zombies < current->num_of_zombie_sons) {
-			return -ENOMEM;
-		}
-	}
-
-	if ((clone_flags & (CLONE_NEWNS | CLONE_FS)) == (CLONE_NEWNS | CLONE_FS))
+	if ((clone_flags & (CLONE_NEWNS|CLONE_FS)) == (CLONE_NEWNS|CLONE_FS))
 		return -EINVAL;
 
 	retval = -EPERM;
@@ -600,7 +623,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 * than the amount of processes root is running. -- Rik
 	 */
 	if (atomic_read(&p->user->processes) >= p->rlim[RLIMIT_NPROC].rlim_cur
-			&& !capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE))
+	              && !capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RESOURCE))
 		goto bad_fork_free;
 
 	atomic_inc(&p->user->__count);
@@ -613,7 +636,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	 */
 	if (nr_threads >= max_threads)
 		goto bad_fork_cleanup_count;
-
+	
 	get_exec_domain(p->exec_domain);
 
 	if (p->binfmt && p->binfmt->module)
@@ -629,11 +652,6 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		goto bad_fork_cleanup;
 
 	INIT_LIST_HEAD(&p->run_list);
-
-	// OUR CODE
-	INIT_LIST_HEAD(&p->zombies_list);
-	p->max_zombies = NO_Z_LIMIT;
-	p->num_of_zombie_sons = 0;
 
 	p->p_cptr = NULL;
 	init_waitqueue_head(&p->wait_chldexit);
@@ -652,7 +670,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	init_timer(&p->real_timer);
 	p->real_timer.data = (unsigned long) p;
 
-	p->leader = 0; /* session leadership doesn't inherit */
+	p->leader = 0;		/* session leadership doesn't inherit */
 	p->tty_old_pgrp = 0;
 	p->times.tms_utime = p->times.tms_stime = 0;
 	p->times.tms_cutime = p->times.tms_cstime = 0;
@@ -662,13 +680,13 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 		/* ?? should we just memset this ?? */
 		for(i = 0; i < smp_num_cpus; i++)
-		p->per_cpu_utime[cpu_logical_map(i)] =
-		p->per_cpu_stime[cpu_logical_map(i)] = 0;
+			p->per_cpu_utime[cpu_logical_map(i)] =
+				p->per_cpu_stime[cpu_logical_map(i)] = 0;
 		spin_lock_init(&p->sigmask_lock);
 	}
 #endif
 	p->array = NULL;
-	p->lock_depth = -1; /* -1 = no lock */
+	p->lock_depth = -1;		/* -1 = no lock */
 	p->start_time = jiffies_64;
 
 	retval = -ENOMEM;
@@ -687,10 +705,10 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 	if (retval)
 		goto bad_fork_cleanup_namespace;
 	p->semundo = NULL;
-
+	
 	/* Our parent execution domain becomes current domain
-	 These must match for thread signalling to apply */
-
+	   These must match for thread signalling to apply */
+	   
 	p->parent_exec_id = p->self_exec_id;
 
 	/* ok, now we should be set up.. */
@@ -718,7 +736,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		 * runqueue lock is not a problem.
 		 */
 		current->time_slice = 1;
-		scheduler_tick(0, 0);
+		scheduler_tick(0,0);
 	}
 	__restore_flags(flags);
 
@@ -756,7 +774,7 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 
 	if (p->ptrace & PT_PTRACED)
 		send_sig(SIGSTOP, p, 1);
-	wake_up_forked_process(p); /* do this last */
+	wake_up_forked_process(p);	/* do this last */
 	++total_forks;
 	if (clone_flags & CLONE_VFORK)
 		wait_for_completion(&vfork);
@@ -767,20 +785,28 @@ int do_fork(unsigned long clone_flags, unsigned long stack_start,
 		 */
 		current->need_resched = 1;
 
-	fork_out: return retval;
+fork_out:
+	return retval;
 
-	bad_fork_cleanup_namespace: exit_namespace(p);
-	bad_fork_cleanup_mm: exit_mm(p);
-	bad_fork_cleanup_sighand: exit_sighand(p);
-	bad_fork_cleanup_fs: exit_fs(p); /* blocking */
-	bad_fork_cleanup_files: exit_files(p); /* blocking */
-	bad_fork_cleanup:
+bad_fork_cleanup_namespace:
+	exit_namespace(p);
+bad_fork_cleanup_mm:
+	exit_mm(p);
+bad_fork_cleanup_sighand:
+	exit_sighand(p);
+bad_fork_cleanup_fs:
+	exit_fs(p); /* blocking */
+bad_fork_cleanup_files:
+	exit_files(p); /* blocking */
+bad_fork_cleanup:
 	put_exec_domain(p->exec_domain);
 	if (p->binfmt && p->binfmt->module)
 		__MOD_DEC_USE_COUNT(p->binfmt->module);
-	bad_fork_cleanup_count: atomic_dec(&p->user->processes);
+bad_fork_cleanup_count:
+	atomic_dec(&p->user->processes);
 	free_uid(p->user);
-	bad_fork_free: free_task_struct(p);
+bad_fork_free:
+	free_task_struct(p);
 	goto fork_out;
 }
 
@@ -799,29 +825,35 @@ kmem_cache_t *vm_area_cachep;
 /* SLAB cache for mm_struct structures (tsk->mm) */
 kmem_cache_t *mm_cachep;
 
-void __init proc_caches_init(void) {
+void __init proc_caches_init(void)
+{
 	sigact_cachep = kmem_cache_create("signal_act",
-			sizeof(struct signal_struct), 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
+			sizeof(struct signal_struct), 0,
+			SLAB_HWCACHE_ALIGN, NULL, NULL);
 	if (!sigact_cachep)
 		panic("Cannot create signal action SLAB cache");
 
-	files_cachep = kmem_cache_create("files_cache", sizeof(struct files_struct),
-			0, SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!files_cachep)
+	files_cachep = kmem_cache_create("files_cache", 
+			 sizeof(struct files_struct), 0, 
+			 SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!files_cachep) 
 		panic("Cannot create files SLAB cache");
 
-	fs_cachep = kmem_cache_create("fs_cache", sizeof(struct fs_struct), 0,
-			SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!fs_cachep)
+	fs_cachep = kmem_cache_create("fs_cache", 
+			 sizeof(struct fs_struct), 0, 
+			 SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if (!fs_cachep) 
 		panic("Cannot create fs_struct SLAB cache");
-
+ 
 	vm_area_cachep = kmem_cache_create("vm_area_struct",
-			sizeof(struct vm_area_struct), 0, SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!vm_area_cachep)
+			sizeof(struct vm_area_struct), 0,
+			SLAB_HWCACHE_ALIGN, NULL, NULL);
+	if(!vm_area_cachep)
 		panic("vma_init: Cannot alloc vm_area_struct SLAB cache");
 
-	mm_cachep = kmem_cache_create("mm_struct", sizeof(struct mm_struct), 0,
+	mm_cachep = kmem_cache_create("mm_struct",
+			sizeof(struct mm_struct), 0,
 			SLAB_HWCACHE_ALIGN, NULL, NULL);
-	if (!mm_cachep)
+	if(!mm_cachep)
 		panic("vma_init: Cannot alloc mm_struct SLAB cache");
 }
